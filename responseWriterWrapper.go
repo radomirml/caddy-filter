@@ -186,6 +186,25 @@ func (instance *responseWriterWrapper) Hijack() (net.Conn, *bufio.ReadWriter, er
 	return nil, nil, httpserver.NonHijackerError{Underlying: instance.delegate}
 }
 
+// Flush implements http.Flusher. It simply wraps the underlying
+// ResponseWriter's Flush method if there is one, or panics.
+func (instance *responseWriterWrapper) Flush() {
+	if f, ok := instance.delegate.(http.Flusher); ok {
+		f.Flush()
+	} else {
+		panic(httpserver.NonFlusherError{Underlying: instance.delegate})
+	}
+}
+
+// CloseNotify implements http.CloseNotifier.
+// It just inherits the underlying ResponseWriter's CloseNotify method.
+func (instance *responseWriterWrapper) CloseNotify() <-chan bool {
+	if cn, ok := instance.delegate.(http.CloseNotifier); ok {
+		return cn.CloseNotify()
+	}
+	panic(httpserver.NonCloseNotifierError{Underlying: instance.delegate})
+}
+
 func (instance *responseWriterWrapper) recordedAndDecodeIfRequired() []byte {
 	result := instance.recorded()
 	if !instance.isGzipEncoded() {
